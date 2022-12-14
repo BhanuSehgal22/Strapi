@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react'; // useState
+import React, { useState, useRef } from 'react';
 import { useIntl } from 'react-intl';
 import styled from 'styled-components';
-import { useHistory, useLocation } from 'react-router-dom';
-
+import { useHistory, useLocation, Link as ReactRouterLink } from 'react-router-dom';
+import { stringify } from 'qs';
 import {
   LoadingIndicatorPage,
   useFocusWhenNavigate,
@@ -12,6 +12,7 @@ import {
   useQueryParams,
   useTracking,
   usePersistentState,
+  CheckPermissions,
 } from '@strapi/helper-plugin';
 import { Layout, ContentLayout, ActionLayout } from '@strapi/design-system/Layout';
 import { Main } from '@strapi/design-system/Main';
@@ -26,31 +27,33 @@ import { Flex } from '@strapi/design-system/Flex';
 import Pencil from '@strapi/icons/Pencil';
 import List from '@strapi/icons/List';
 import Grid from '@strapi/icons/Grid';
+import Cog from '@strapi/icons/Cog';
 
-import { UploadAssetDialog } from '../../components/UploadAssetDialog/UploadAssetDialog';
-import { EditFolderDialog } from '../../components/EditFolderDialog';
-import { EditAssetDialog } from '../../components/EditAssetDialog';
-import { TableList } from '../../components/TableList';
-import { AssetGridList } from '../../components/AssetGridList';
-import { FolderGridList } from '../../components/FolderGridList';
-import SortPicker from '../../components/SortPicker';
-import { useAssets } from '../../hooks/useAssets';
-import { useFolders } from '../../hooks/useFolders';
-import { useFolder } from '../../hooks/useFolder';
-import { useMediaLibraryPermissions } from '../../hooks/useMediaLibraryPermissions';
-import { getTrad, containsAssetFilter, getBreadcrumbDataML, getFolderURL } from '../../utils';
-import { PaginationFooter } from '../../components/PaginationFooter';
+import { UploadAssetDialog } from '../../../components/UploadAssetDialog/UploadAssetDialog';
+import { EditFolderDialog } from '../../../components/EditFolderDialog';
+import { EditAssetDialog } from '../../../components/EditAssetDialog';
+import { AssetGridList } from '../../../components/AssetGridList';
+import { FolderGridList } from '../../../components/FolderGridList';
+import { TableList } from '../../../components/TableList';
+import SortPicker from '../../../components/SortPicker';
+import { useAssets } from '../../../hooks/useAssets';
+import { useFolders } from '../../../hooks/useFolders';
+import { getTrad, containsAssetFilter, getBreadcrumbDataML, getFolderURL } from '../../../utils';
+import { PaginationFooter } from '../../../components/PaginationFooter';
+import { useMediaLibraryPermissions } from '../../../hooks/useMediaLibraryPermissions';
+import { useFolder } from '../../../hooks/useFolder';
 import { BulkActions } from './components/BulkActions';
 import {
   FolderCard,
   FolderCardBody,
   FolderCardCheckbox,
   FolderCardBodyAction,
-} from '../../components/FolderCard';
+} from '../../../components/FolderCard';
 import { Filters } from './components/Filters';
 import { Header } from './components/Header';
 import { EmptyOrNoPermissions } from './components/EmptyOrNoPermissions';
-import { localStorageKeys, viewOptions } from '../../constants';
+import { localStorageKeys, viewOptions } from '../../../constants';
+import pluginPermissions from '../../../permissions';
 
 const BoxWithHeight = styled(Box)`
   height: ${32 / 16}rem;
@@ -62,13 +65,14 @@ const TypographyMaxWidth = styled(Typography)`
   max-width: 100%;
 `;
 
-const ActionContainer = styled(Box)`
+const ConfigureTheViewButton = styled(Box)`
   svg {
     path {
-      fill: ${({ theme }) => theme.colors.neutral500};
+      fill: ${({ theme }) => theme.colors.neutral900};
     }
   }
 `;
+
 export const MediaLibrary = () => {
   const { push } = useHistory();
   const {
@@ -249,23 +253,37 @@ export const MediaLibrary = () => {
           }
           endActions={
             <>
-              <ActionContainer paddingTop={1} paddingBottom={1}>
-                <IconButton
-                  icon={isGridView ? <List /> : <Grid />}
-                  label={
-                    isGridView
-                      ? formatMessage({
-                          id: 'view-switch.list',
-                          defaultMessage: 'List View',
-                        })
-                      : formatMessage({
-                          id: 'view-switch.grid',
-                          defaultMessage: 'Grid View',
-                        })
-                  }
-                  onClick={() => setView(isGridView ? viewOptions.LIST : viewOptions.GRID)}
-                />
-              </ActionContainer>
+              <IconButton
+                icon={isGridView ? <List /> : <Grid />}
+                label={
+                  isGridView
+                    ? formatMessage({
+                        id: 'view-switch.list',
+                        defaultMessage: 'List View',
+                      })
+                    : formatMessage({
+                        id: 'view-switch.grid',
+                        defaultMessage: 'Grid View',
+                      })
+                }
+                onClick={() => setView(isGridView ? viewOptions.LIST : viewOptions.GRID)}
+              />
+              <CheckPermissions permissions={pluginPermissions.configureView}>
+                <ConfigureTheViewButton paddingTop={1} paddingBottom={1}>
+                  <IconButton
+                    forwardedAs={ReactRouterLink}
+                    to={{
+                      pathname: `${pathname}/configuration`,
+                      search: stringify(query, { encode: false }),
+                    }}
+                    icon={<Cog />}
+                    label={formatMessage({
+                      id: 'app.links.configure-view',
+                      defaultMessage: 'Configure the view',
+                    })}
+                  />
+                </ConfigureTheViewButton>
+              </CheckPermissions>
               <SearchURLQuery
                 label={formatMessage({
                   id: getTrad('search.label'),

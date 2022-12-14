@@ -101,6 +101,7 @@ export const viewOptions = {
   GRID: 0,
   LIST: 1,
 };
+
 export const tableHeaders = [
   {
     name: 'preview',
